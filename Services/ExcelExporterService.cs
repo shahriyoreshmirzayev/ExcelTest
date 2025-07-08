@@ -12,14 +12,12 @@ public class ExcelExporterService
         using var package = new ExcelPackage();
         var worksheet = package.Workbook.Worksheets.Add("Students");
 
-        // Headers
         worksheet.Cells[1, 1].Value = "ID";
         worksheet.Cells[1, 2].Value = "Name";
         worksheet.Cells[1, 3].Value = "DOB";
         worksheet.Cells[1, 4].Value = "Email";
         worksheet.Cells[1, 5].Value = "Mobile";
 
-        // Data rows
         for (int i = 0; i < students.Count; i++)
         {
             var s = students[i];

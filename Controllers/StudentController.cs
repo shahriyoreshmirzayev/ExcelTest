@@ -1,39 +1,18 @@
 ﻿using ExcelTest1.Models;
 using ExcelTest1.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using System.Security.Claims;
 namespace ExcelTest1.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     public class StudentController : ControllerBase
     {
-        /*private readonly ApplicationDbContext _context;
-        private readonly ExcelExporterService _excelExporter;
-
-        public StudentController(ApplicationDbContext context)
-        {
-            _context = context;
-            _excelExporter = new ExcelExporterService(); // yoki DI orqali uzating
-        }
-
-        [HttpGet("export")]
-        public async Task<IActionResult> ExportToExcel()
-        {
-            var students = await _context.Students.ToListAsync();
-
-            if (!students.Any())
-                return NotFound("Bazadan studentlar topilmadi.");
-
-            var fileContents = _excelExporter.ExportStudentsToExcel(students);
-            return File(fileContents,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                "students.xlsx");
-        }*/
-
         private readonly ExcelExporterService _excelExporter;
         private readonly ExcelImporterService _excelImporter;
         private readonly string _connectionString;
@@ -49,6 +28,9 @@ namespace ExcelTest1.Controllers
         [HttpGet("[action]")]
         public async Task<ActionResult<List<Student>>> GetAllStudents()     // GetStudents
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var username = User.FindFirst(ClaimTypes.Name)?.Value;
+
             var students = new List<Student>();
 
             using var connection = new SqlConnection(_connectionString);
@@ -97,11 +79,11 @@ namespace ExcelTest1.Controllers
                 };
                 return Ok(student);
             }
-
             return NotFound();
         }
 
         [HttpPost("[action]")]
+        [Authorize(Roles = "Admin,User")]
         public async Task<ActionResult<Student>> CreateStudent(Student student)
         {
             using var connection = new SqlConnection(_connectionString);
@@ -122,15 +104,16 @@ namespace ExcelTest1.Controllers
             return CreatedAtAction(nameof(GetStudentById), new { id = student.Id }, student);
         }
 
-        [HttpPut("[action]/{id}")]
+        [HttpPut("[action]")]
+        [Authorize(Roles = "Admin,User")]
         public async Task<IActionResult> UpdateStudent(int id, Student student)
         {
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
             var query = @"UPDATE [TestExcel].[dbo].[Students] 
-                      SET [Name] = @Name, [DOB] = @DOB, [Email] = @Email, [Mob] = @Mob 
-                      WHERE [Id] = @Id";
+                     SET [Name] = @Name, [DOB] = @DOB, [Email] = @Email, [Mob] = @Mob 
+                     WHERE [Id] = @Id";
 
             using var command = new SqlCommand(query, connection);
             command.Parameters.AddWithValue("@Id", id);
@@ -150,6 +133,7 @@ namespace ExcelTest1.Controllers
         }
 
         [HttpDelete("[action]")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteStudent(int id)
         {
             using var connection = new SqlConnection(_connectionString);
@@ -170,7 +154,8 @@ namespace ExcelTest1.Controllers
         }
 
         // YANGI: Excel Export/Import metodlari
-        [HttpPost("export")]
+        [HttpPost("[action]")]
+        [Authorize(Roles = "Admin,User")]
         public async Task<IActionResult> ExportToExcel()
         {
             var students = await GetStudentsFromDatabase();
@@ -187,7 +172,8 @@ namespace ExcelTest1.Controllers
                 $"Students_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
         }
 
-        [HttpPost("import")]
+        [HttpPost("[action]")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ImportFromExcel(IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -217,7 +203,8 @@ namespace ExcelTest1.Controllers
             }
         }
 
-        [HttpGet("import-sample")]
+        [HttpGet("[action]")]
+        [Authorize(Roles = "Admin,User")]
         public async Task<IActionResult> GenerateImportSample()
         {
             var sampleStudents = new List<Student>

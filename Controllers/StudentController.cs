@@ -1,5 +1,6 @@
 ﻿using ExcelTest1.Models;
 using ExcelTest1.Services;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -45,8 +46,8 @@ namespace ExcelTest1.Controllers
         }
 
         // Mavjud metodlaringiz (CRUD operatsiyalari)
-        [HttpGet]
-        public async Task<ActionResult<List<Student>>> GetStudents()
+        [HttpGet("[action]")]
+        public async Task<ActionResult<List<Student>>> GetAllStudents()     // GetStudents
         {
             var students = new List<Student>();
 
@@ -72,8 +73,8 @@ namespace ExcelTest1.Controllers
             return Ok(students);
         }
 
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Student>> GetStudent(int id)
+        [HttpGet("[action]")]
+        public async Task<ActionResult<Student>> GetStudentById(int id)
         {
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
@@ -100,7 +101,7 @@ namespace ExcelTest1.Controllers
             return NotFound();
         }
 
-        [HttpPost]
+        [HttpPost("[action]")]
         public async Task<ActionResult<Student>> CreateStudent(Student student)
         {
             using var connection = new SqlConnection(_connectionString);
@@ -118,18 +119,18 @@ namespace ExcelTest1.Controllers
             var newId = (int)await command.ExecuteScalarAsync();
             student.Id = newId;
 
-            return CreatedAtAction(nameof(GetStudent), new { id = student.Id }, student);
+            return CreatedAtAction(nameof(GetStudentById), new { id = student.Id }, student);
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("[action]/{id}")]
         public async Task<IActionResult> UpdateStudent(int id, Student student)
         {
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
             var query = @"UPDATE [TestExcel].[dbo].[Students] 
-                     SET [Name] = @Name, [DOB] = @DOB, [Email] = @Email, [Mob] = @Mob 
-                     WHERE [Id] = @Id";
+                      SET [Name] = @Name, [DOB] = @DOB, [Email] = @Email, [Mob] = @Mob 
+                      WHERE [Id] = @Id";
 
             using var command = new SqlCommand(query, connection);
             command.Parameters.AddWithValue("@Id", id);
@@ -145,10 +146,10 @@ namespace ExcelTest1.Controllers
                 return NotFound();
             }
 
-            return NoContent();
+            return Ok(student);
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("[action]")]
         public async Task<IActionResult> DeleteStudent(int id)
         {
             using var connection = new SqlConnection(_connectionString);
@@ -220,17 +221,15 @@ namespace ExcelTest1.Controllers
         public async Task<IActionResult> GenerateImportSample()
         {
             var sampleStudents = new List<Student>
-        {
+            {
             new Student { Name = "Namuna Talaba 1", DOB = DateTime.Now.AddYears(-20), Email = "namuna1@email.com", Mob = "+998901234567" },
             new Student { Name = "Namuna Talaba 2", DOB = DateTime.Now.AddYears(-22), Email = "namuna2@email.com", Mob = "+998912345678" },
             new Student { Name = "Namuna Talaba 3", DOB = DateTime.Now.AddYears(-21), Email = "namuna3@email.com", Mob = "+998923456789" }
-        };
+            };
 
             var excelData = _excelExporter.ExportStudentsToExcel(sampleStudents);
 
-            return File(excelData,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                "Import_Sample.xlsx");
+            return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Import_Sample.xlsx");
         }
 
         // Helper metod

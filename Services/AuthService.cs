@@ -59,7 +59,7 @@ namespace ExcelTest1.Services
             }
 
             // Yangi foydalanuvchi yaratish
-            var user = new User
+            /*var user = new User
             {
                 Username = registerDto.Username,
                 Email = registerDto.Email,
@@ -67,8 +67,15 @@ namespace ExcelTest1.Services
                 Role = "User",
                 CreatedAt = DateTime.Now,
                 IsActive = true
+            };*/
+            var user = new User
+            {
+                Username = registerDto.Username,
+                Email = registerDto.Email,
+                PasswordHash = HashPassword(registerDto.Password),
+                Role = registerDto.Role ?? "User", // Rol o'rnatish
+                IsActive = true
             };
-
             var userId = await CreateUserAsync(user);
             user.Id = userId;
 

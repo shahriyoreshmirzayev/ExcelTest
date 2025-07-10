@@ -1,6 +1,5 @@
 ﻿using ExcelTest1.DTOs;
 using ExcelTest1.Services;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ExcelTest1.Controllers;
@@ -57,6 +56,38 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             return BadRequest(new { message = "Ro'yxatdan o'tishda xatolik yuz berdi" });
+        }
+    }
+
+    [HttpPost("[action]")]
+    public async Task<IActionResult> RegisterAdmin([FromBody] AdminRegisterDto adminRegisterDto)
+    {
+        try
+        {
+            // AdminRegisterDto'ni RegisterDto'ga convert qilish
+            var registerDto = new RegisterDto
+            {
+                Username = adminRegisterDto.Username,
+                Email = adminRegisterDto.Email,
+                Password = adminRegisterDto.Password,
+                ConfirmPassword = adminRegisterDto.ConfirmPassword,
+                Role = "Admin" // Admin rolini o'rnatish
+            };
+
+            var result = await _authService.RegisterAsync(registerDto);
+            if (result == null)
+            {
+                return BadRequest(new { message = "Admin yaratishda xatolik" });
+            }
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = "Admin yaratishda xatolik yuz berdi" });
         }
     }
 }

@@ -2,7 +2,7 @@
 
 namespace ExcelTest1.DTOs
 {
-    public class RegisterDto
+    public class AdminRegisterDto
     {
         [Required]
         [StringLength(50)]
@@ -21,7 +21,7 @@ namespace ExcelTest1.DTOs
         [Compare("Password")]
         public string ConfirmPassword { get; set; } = string.Empty;
 
-        // Role propertysi qo'shish
-        public string Role { get; set; } = "User"; // Default User
+        [Required]
+        public string Role { get; set; } = "Admin";
     }
 }

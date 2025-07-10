@@ -1,20 +1,24 @@
 using ExcelTest1.Data;
 using ExcelTest1.Services;
+using ExcelTest1.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using ExcelTest1.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
-
+// Add controllers
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// Swagger configuration
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "ExcelTest1 API", Version = "v1" });
 
-    // JWT uchun Swagger konfiguratsiyasi
+    // JWT configuration for Swagger
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
@@ -39,8 +43,11 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
+
+// JWT Configuration
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -56,24 +63,30 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.Zero
         };
     });
+
 builder.Services.AddAuthorization();
+
+// Get connection string
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found");
+
+// Register Auth services
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<AuthService>(provider =>
 {
-    var configuration = provider.GetRequiredService<IConfiguration>();
     var jwtService = provider.GetRequiredService<JwtTokenService>();
-    var connectionString = configuration.GetConnectionString("DefaultConnection");
     return new AuthService(connectionString, jwtService);
 });
-builder.Services.AddScoped<ExcelExporterService>();
-builder.Services.AddScoped<ExcelImporterService>(provider =>
-{
-    var configuration = provider.GetRequiredService<IConfiguration>();
-    var connectionString = configuration.GetConnectionString("DefaultConnection");
-    return new ExcelImporterService(connectionString);
-});
 
+// Register repositories
+builder.Services.AddScoped<IStudentRepository>(provider =>
+        new StudentRepository(connectionString));
 
+// Register services
+builder.Services.AddScoped<IStudentService, StudentService>();
+builder.Services.AddScoped<IExcelService, ExcelService>();
+
+// CORS configuration
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
@@ -83,13 +96,16 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader());
 });
 
-
-
-builder.Services.AddOpenApi();
+// Database context
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(connectionString));
+
+// OpenAPI
+builder.Services.AddOpenApi();
+
 var app = builder.Build();
 
+// Configure pipeline
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -98,7 +114,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseAuthentication(); // BU MUHIM
+app.UseAuthentication();
 app.UseAuthorization();
 app.UseCors("AllowAll");
 app.MapControllers();

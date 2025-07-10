@@ -1,27 +1,26 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ExcelTest1.DTOs
+namespace ExcelTest1.DTOs;
+
+public class RegisterDto
 {
-    public class RegisterDto
-    {
-        [Required]
-        [StringLength(50)]
-        public string Username { get; set; } = string.Empty;
+    [Required]
+    [StringLength(50)]
+    public string Username { get; set; } = string.Empty;
 
-        [Required]
-        [EmailAddress]
-        [StringLength(100)]
-        public string Email { get; set; } = string.Empty;
+    [Required]
+    [EmailAddress]
+    [StringLength(100)]
+    public string Email { get; set; } = string.Empty;
 
-        [Required]
-        [StringLength(100, MinimumLength = 6)]
-        public string Password { get; set; } = string.Empty;
+    [Required]
+    [StringLength(100, MinimumLength = 6)]
+    public string Password { get; set; } = string.Empty;
 
-        [Required]
-        [Compare("Password")]
-        public string ConfirmPassword { get; set; } = string.Empty;
+    [Required]
+    [Compare("Password")]
+    public string ConfirmPassword { get; set; } = string.Empty;
 
-        // Role propertysi qo'shish
-        public string Role { get; set; } = "User"; // Default User
-    }
+    // Role propertysi qo'shish
+    public string Role { get; set; } = "User"; // Default User
 }

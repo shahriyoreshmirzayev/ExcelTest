@@ -1,6 +1,6 @@
 ﻿using ExcelTest1.Models;
 
-namespace ExcelTest1.Repositories;
+namespace ExcelTest1.Repositories; 
 
 public interface IStudentRepository
 {

@@ -19,7 +19,7 @@ public class StudentController : ControllerBase
     }
 
     [HttpGet("[action]")]
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<IEnumerable<Student>>> GetAllStudents()
     {
         var students = await _studentService.GetAllStudentsAsync();

@@ -1,11 +1,10 @@
 ﻿using ExcelTest1.Models;
 
-namespace ExcelTest1.Services
+namespace ExcelTest1.Services;
+
+public interface IExcelService
 {
-    public interface IExcelService
-    {
-        byte[] ExportStudentsToExcel(IEnumerable<Student> students);
-        Task<ImportResult> ImportStudentsFromExcelAsync(IFormFile file);
-        //byte[] GenerateImportSample();
-    }
+    byte[] ExportStudentsToExcel(IEnumerable<Student> students);
+    Task<ImportResult> ImportStudentsFromExcelAsync(IFormFile file);
+    //byte[] GenerateImportSample();
 }

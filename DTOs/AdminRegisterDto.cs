@@ -8,6 +8,7 @@ public class AdminRegisterDto
     [StringLength(50)]
     public string Username { get; set; } = string.Empty;
 
+
     [Required]
     [EmailAddress]
     [StringLength(100)]

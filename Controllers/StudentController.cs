@@ -1,14 +1,276 @@
 ﻿using ExcelTest1.Models;
 using ExcelTest1.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 namespace ExcelTest1.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
 public class StudentController : ControllerBase
 {
+    private readonly IStudentService _studentService;
+    private readonly IExcelService _excelService;
+
+    public StudentController(IStudentService studentService, IExcelService excelService)
+    {
+        _studentService = studentService;
+        _excelService = excelService;
+    }
+
+    // Mavjud CRUD operatsiyalaringiz...
+
+    [HttpGet("export-excel")]
+    public async Task<IActionResult> ExportStudentsToExcel()
+    {
+        try
+        {
+            var students = await _studentService.GetAllAsync();
+            var excelData = _excelService.ExportStudentsToExcel(students);
+
+            var fileName = $"students_export_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+
+            return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("export-excel-with-qr")]
+    public async Task<IActionResult> ExportStudentsToExcelWithQR()
+    {
+        try
+        {
+            var students = await _studentService.GetAllAsync();
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+
+            var result = await _excelService.ExportStudentsToExcelWithQRAsync(students, baseUrl);
+
+            if (!result.IsSuccess)
+            {
+                return BadRequest(new { error = result.ErrorMessage });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = "Excel fayl va QR kod muvaffaqiyatli yaratildi",
+                data = new
+                {
+                    fileUrl = result.FileUrl,
+                    fileName = result.FileName,
+                    qrCodeUrl = result.QRCodeUrl,
+                    qrCodeBase64 = Convert.ToBase64String(result.QRCodeData ?? Array.Empty<byte>()),
+                    processedRows = result.ProcessedRows,
+                    createdAt = result.CreatedAt
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("import-excel")]
+    public async Task<IActionResult> ImportStudentsFromExcel([FromForm] ExcelImportRequest request)
+    {
+        try
+        {
+            if (request.File == null || request.File.Length == 0)
+            {
+                return BadRequest(new { error = "Fayl yuklanmadi" });
+            }
+
+            var result = await _excelService.ImportStudentsFromExcelAsync(request.File);
+
+            if (!result.IsSuccess)
+            {
+                return BadRequest(new
+                {
+                    error = result.ErrorMessage,
+                    details = result.Errors.Take(10).ToArray() // Faqat birinchi 10 ta xatoni ko'rsatish
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = "Ma'lumotlar muvaffaqiyatli import qilindi",
+                data = new
+                {
+                    processedRows = result.ProcessedRows,
+                    skippedRows = result.SkippedRows,
+                    totalErrors = result.Errors.Count,
+                    errors = result.Errors.Take(5).ToArray(), // Birinchi 5 ta xato
+                    importedAt = result.ImportedAt
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("download-import-sample")]
+    public IActionResult DownloadImportSample()
+    {
+        try
+        {
+            var sampleData = _excelService.GenerateImportSample();
+            var fileName = $"student_import_sample_{DateTime.Now:yyyyMMdd}.xlsx";
+
+            return File(sampleData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("generate-qr")]
+    public async Task<IActionResult> GenerateQRCode([FromBody] QRCodeRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.Url))
+            {
+                return BadRequest(new { error = "URL bo'sh bo'lishi mumkin emas" });
+            }
+
+            var result = await _excelService.GenerateQRCodeForFileAsync(request.Url);
+
+            if (!result.IsSuccess)
+            {
+                return BadRequest(new { error = result.ErrorMessage });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = "QR kod muvaffaqiyatli yaratildi",
+                data = new
+                {
+                    qrCodeBase64 = Convert.ToBase64String(result.QRCodeData ?? Array.Empty<byte>()),
+                    qrCodeUrl = result.QRCodeUrl,
+                    targetUrl = result.TargetUrl,
+                    createdAt = result.CreatedAt
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("qr-code/{fileName}")]
+    public IActionResult GetQRCode(string fileName)
+    {
+        try
+        {
+            var qrCodesPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "qrcodes");
+            var filePath = Path.Combine(qrCodesPath, fileName);
+
+            if (!System.IO.File.Exists(filePath))
+            {
+                return NotFound(new { error = "QR kod fayli topilmadi" });
+            }
+
+            var fileBytes = System.IO.File.ReadAllBytes(filePath);
+            return File(fileBytes, "image/png");
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("download/{fileName}")]
+    public IActionResult DownloadFile(string fileName)
+    {
+        try
+        {
+            var downloadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "downloads");
+            var filePath = Path.Combine(downloadsPath, fileName);
+
+            if (!System.IO.File.Exists(filePath))
+            {
+                return NotFound(new { error = "Fayl topilmadi" });
+            }
+
+            var fileBytes = System.IO.File.ReadAllBytes(filePath);
+            return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpDelete("cleanup-files")]
+    public IActionResult CleanupOldFiles()
+    {
+        try
+        {
+            var deletedFiles = 0;
+            var cutoffDate = DateTime.Now.AddHours(-24); // 24 soat eski fayllarni o'chirish
+
+            // Downloads papkasini tozalash
+            var downloadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "downloads");
+            if (Directory.Exists(downloadsPath))
+            {
+                var files = Directory.GetFiles(downloadsPath);
+                foreach (var file in files)
+                {
+                    var fileInfo = new FileInfo(file);
+                    if (fileInfo.CreationTime < cutoffDate)
+                    {
+                        System.IO.File.Delete(file);
+                        deletedFiles++;
+                    }
+                }
+            }
+
+            // QR codes papkasini tozalash
+            var qrCodesPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "qrcodes");
+            if (Directory.Exists(qrCodesPath))
+            {
+                var files = Directory.GetFiles(qrCodesPath);
+                foreach (var file in files)
+                {
+                    var fileInfo = new FileInfo(file);
+                    if (fileInfo.CreationTime < cutoffDate)
+                    {
+                        System.IO.File.Delete(file);
+                        deletedFiles++;
+                    }
+                }
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = $"{deletedFiles} ta eski fayl o'chirildi",
+                deletedFiles = deletedFiles
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+
+
+
+
+
+
+
+
+    /*
     private readonly IStudentService _studentService;
     private readonly IExcelService _excelService;
 
@@ -130,8 +392,12 @@ public class StudentController : ControllerBase
         var username = User.FindFirst(ClaimTypes.Name)?.Value;
 
         return Ok(new { UserId = userId, Username = username });
-    }
+    }*/
 }
+
+
+
+
 /*[Route("api/[controller]")]
 [ApiController]
 public class StudentController : ControllerBase

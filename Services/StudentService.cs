@@ -1,4 +1,6 @@
-﻿using ExcelTest1.Models;
+﻿using DocumentFormat.OpenXml.InkML;
+using ExcelTest1.Data;
+using ExcelTest1.Models;
 using ExcelTest1.Repositories;
 
 namespace ExcelTest1.Services;
@@ -6,10 +8,11 @@ namespace ExcelTest1.Services;
 public class StudentService : IStudentService
 {
     private readonly IStudentRepository _studentRepository;
-
-    public StudentService(IStudentRepository studentRepository)
+    private readonly ApplicationDbContext _context;
+    public StudentService(IStudentRepository studentRepository, ApplicationDbContext context)
     {
         _studentRepository = studentRepository;
+        _context = context;
     }
 
     public async Task<IEnumerable<Student>> GetAllStudentsAsync()
